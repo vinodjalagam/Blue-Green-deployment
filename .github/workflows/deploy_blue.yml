@@ -32,19 +32,6 @@ jobs:
           sudo ufw allow 'Nginx HTTP'
           sudo ufw allow 'Nginx HTTPS'
           sudo systemctl start nginx
-      - name: Prepare Deployment Directory
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          SSH_HOST: ${{ secrets.HOST }}
-          SSH_USERNAME: ${{ secrets.USERNAME }}
-        run: |
-          echo "$SSH_PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-
-          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
-            sudo mkdir -p /home/$SSH_USERNAME/backend-blue
-            sudo chown $SSH_USERNAME:$SSH_USERNAME /home/$SSH_USERNAME/backend-blue
-          EOF
 
       - name: Deploy to Blue Environment
         env:
@@ -66,7 +53,6 @@ jobs:
             cd $DEPLOY_DIR
             echo "Contents of $DEPLOY_DIR"
             ls -al 
-
             sudo apt update -y
             sudo apt install npm -y
             sudo npm init -y
