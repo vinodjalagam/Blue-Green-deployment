@@ -25,6 +25,13 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+      - name: Install Nginx
+        run: |
+          sudo apt update -y
+          sudo apt install -y nginx
+          sudo ufw allow 'Nginx HTTP'
+          sudo ufw allow 'Nginx HTTPS'
+          sudo systemctl start nginx
 
       - name: Deploy to Blue Environment
         env:
