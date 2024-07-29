@@ -56,6 +56,7 @@ jobs:
             
             sudo apt update -y
             sudo apt install npm -y
+            sudo npm init -y
             sudo npm install -g pm2 -y
             if [ -f package.json ]; then
               npm install -y
