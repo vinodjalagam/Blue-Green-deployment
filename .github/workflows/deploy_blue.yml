@@ -84,7 +84,7 @@ jobs:
           chmod 600 private_key.pem
 
           SERVICE_PORT=8085
-          scp -i private_key.pem nginx_blue.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx_blue.conf
+          scp -i private_key.pem ./nginx/nginx_blue.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx_blue.conf
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
             sudo sed -i "s|{{SERVICE_PORT}}|$SERVICE_PORT|g" /tmp/nginx_blue.conf
             sudo mv /tmp/nginx_blue.conf /etc/nginx/sites-available/default
