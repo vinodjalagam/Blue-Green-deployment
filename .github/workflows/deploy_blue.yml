@@ -86,6 +86,7 @@ jobs:
           scp -i private_key.pem ./nginx/nginx_blue.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx_blue.conf
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
             sudo apt update && sudo apt install nginx -y
+            sudo mkdir -p /etc/nginx/sites-available /etc/nginx/sites-enabled
             sudo sed -i "s|{{SERVICE_PORT}}|$SERVICE_PORT|g" /tmp/nginx_blue.conf
             sudo mv /tmp/nginx_blue.conf /etc/nginx/sites-available/default
             sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
