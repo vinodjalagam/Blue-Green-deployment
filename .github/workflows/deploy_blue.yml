@@ -64,12 +64,13 @@ jobs:
               exit 1
             fi        
             if [ -f index.js ]; then    
+            
               pm2 start index.js --name backend-blue --watch -f || pm2 restart backend-blue
             else
               echo "index.js not found!"
               exit 1
             fi
-            pm2 save
+            
 
           EOF
 
