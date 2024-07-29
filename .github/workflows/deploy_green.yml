@@ -46,7 +46,7 @@ jobs:
           SERVICE_PORT=8085
 
           echo "Deploying to $DEPLOY_DIR"
-          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR"
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown -R $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR && sudo chmod -R 755 $DEPLOY_DIR"
           scp -i private_key.pem -r ./backend-green/* $SSH_USERNAME@$SSH_HOST:$DEPLOY_DIR/
 
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
@@ -84,6 +84,7 @@ jobs:
           SERVICE_PORT=8086
           scp -i private_key.pem ./nginx/nginx_green.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx_green.conf
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
+            sudo apt update && sudo apt install nginx -y
             sudo sed -i "s|{{SERVICE_PORT}}|$SERVICE_PORT|g" /tmp/nginx_green.conf
             sudo mv /tmp/nginx_green.conf /etc/nginx/sites-available/default
             sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
