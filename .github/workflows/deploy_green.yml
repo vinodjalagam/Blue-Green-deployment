@@ -1,0 +1,71 @@
+name: Deploy to Green Environment
+on:
+  workflow_dispatch:
+    inputs:
+      update:
+        description: 'Deploy to green environment'
+        required: true
+        default: 'true'
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "14"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Add SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Green Environment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.HOST }}
+          SSH_USERNAME: ${{ secrets.USERNAME }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          DEPLOY_DIR="/home/$SSH_USERNAME/backend-green"
+          SERVICE_PORT=8085
+
+          echo "Deploying to $DEPLOY_DIR"
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR"
+          scp -i private_key.pem -r ./* $SSH_USERNAME@$SSH_HOST:$DEPLOY_DIR/
+
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
+            cd $DEPLOY_DIR
+            sudo apt update -y
+            sudo apt install npm -y
+            sudo npm install -g pm2 -y
+            npm install
+            pm2 start index.js --name backend-green --watch -f || pm2 restart backend-green
+          EOF
+
+      - name: Configure Nginx for Green
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.HOST }}
+          SSH_USERNAME: ${{ secrets.USERNAME }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          SERVICE_PORT=8086
+          scp -i private_key.pem nginx_green.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx.conf
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
+            sudo sed -i "s|{{SERVICE_PORT}}|$SERVICE_PORT|g" /tmp/nginx.conf
+            sudo mv /tmp/nginx.conf /etc/nginx/sites-available/default
+            sudo ln -sf /etc/nginx/sites-available/default /etc/nginx/sites-enabled/
+            sudo nginx -t
+            sudo systemctl reload nginx
+          EOF
