@@ -59,7 +59,7 @@ jobs:
           SERVICE_PORT=8085
 
           echo "Deploying to $DEPLOY_DIR"
-          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR"
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown -R $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR && sudo chmod -R 755 $DEPLOY_DIR"
           scp -i private_key.pem -r ./backend-blue/* $SSH_USERNAME@$SSH_HOST:$DEPLOY_DIR/
 
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
