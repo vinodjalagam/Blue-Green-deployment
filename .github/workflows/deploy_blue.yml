@@ -54,8 +54,20 @@ jobs:
             sudo apt update -y
             sudo apt install npm -y
             sudo npm install -g pm2 -y
-            npm install
-            pm2 start index.js --name backend-blue --watch -f || pm2 restart backend-blue
+            if [ -f package.json ]; then
+              npm install -y
+            else
+              echo "package.json not found!"
+              exit 1
+            fi        
+            if [ -f index.js ]; then    
+              pm2 start index.js --name backend-blue --watch -f || pm2 restart backend-blue
+            else
+              echo "index.js not found!"
+              exit 1
+            fi
+            pm2 save
+
           EOF
 
       - name: Configure Nginx for Blue
