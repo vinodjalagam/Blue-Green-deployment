@@ -1,22 +1,16 @@
-name: Verify Active Deployment
-
+name: Verify Deployment
 on:
   workflow_dispatch:
-
 jobs:
   verify:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
       - name: Add SSH host key
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-      - name: Verify Active Deployment
+      - name: Verify Deployment
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.HOST }}
@@ -25,25 +19,26 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          echo "Checking active deployment"
+          ACTIVE_ENV=$(ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST 'if [ -d /home/$SSH_USERNAME/backend-green ]; then echo "green"; else echo "blue"; fi')
+          echo "Active environment: $ACTIVE_ENV"
+
+          if [ "$ACTIVE_ENV" = "blue" ]; then
+            SERVICE_PORT=8085
+          else
+            SERVICE_PORT=8086
+          fi
+
+          echo "Checking service status on port $SERVICE_PORT"
+
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
-            ACTIVE_ENV=\$(sudo grep -oP 'proxy_pass http://\K[^;]+' /etc/nginx/sites-available/default)
-            if [ "\$ACTIVE_ENV" == "blue" ]; then
-              echo "Blue environment is active"
-              DEPLOY_DIR="/home/$SSH_USERNAME/backend-blue"
-              SERVICE_PORT=8085
-            elif [ "\$ACTIVE_ENV" == "green" ]; then
-              echo "Green environment is active"
-              DEPLOY_DIR="/home/$SSH_USERNAME/backend-green"
-              SERVICE_PORT=8086
-            else
-              echo "No active environment found"
+            sudo apt install -y net-tools || true
+            sudo netstat -tuln | grep :$SERVICE_PORT
+            if [ $? -ne 0 ]; then
+              echo "Service is not running on port $SERVICE_PORT"
               exit 1
             fi
-
-            echo "Verifying deployment in \$DEPLOY_DIR"
-            cd \$DEPLOY_DIR
-            echo "Contents of \$DEPLOY_DIR"
-            ls -al 
-            curl -f http://localhost:\$SERVICE_PORT || exit 1
           EOF
+
+          echo "Service is running on port $SERVICE_PORT, running curl command"
+
+          curl -f http://$SSH_HOST:$SERVICE_PORT/sayHello || exit 1
