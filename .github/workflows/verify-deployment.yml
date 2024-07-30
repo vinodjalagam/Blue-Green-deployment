@@ -1,16 +1,19 @@
-name: Verify Deployment
+name: Switch Deployment
+
 on:
   workflow_dispatch:
+
 jobs:
-  verify:
+  switch:
     runs-on: ubuntu-latest
+
     steps:
       - name: Add SSH host key
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan ${{ secrets.HOST }} >> ~/.ssh/known_hosts
 
-      - name: Verify Deployment
+      - name: Switch Deployment
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           SSH_HOST: ${{ secrets.HOST }}
@@ -19,17 +22,31 @@ jobs:
           echo "$SSH_PRIVATE_KEY" > private_key.pem
           chmod 600 private_key.pem
 
-          ACTIVE_ENV=$(ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST 'if [ -d /home/$SSH_USERNAME/backend-green ]; then echo "green"; else echo "blue"; fi')
+          # Determine the active environment
+          ACTIVE_ENV=$(ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST 'if grep -q "proxy_pass http://blue" /etc/nginx/sites-available/default; then echo "blue"; else echo "green"; fi')
           echo "Active environment: $ACTIVE_ENV"
 
+          # Set the new environment
           if [ "$ACTIVE_ENV" = "blue" ]; then
-            SERVICE_PORT=8085
-          else
+            NEW_ENV="green"
             SERVICE_PORT=8086
+          else
+            NEW_ENV="blue"
+            SERVICE_PORT=8085
           fi
+          echo "Switching to $NEW_ENV environment"
 
-          echo "Checking service status on port $SERVICE_PORT"
+          # Update Nginx configuration
+          scp -i private_key.pem ./nginx/nginx_$NEW_ENV.conf $SSH_USERNAME@$SSH_HOST:/tmp/nginx_$NEW_ENV.conf
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
+            sudo sed -i "s|{{SERVICE_PORT}}|$SERVICE_PORT|g" /tmp/nginx_$NEW_ENV.conf
+            sudo mv /tmp/nginx_$NEW_ENV.conf /etc/nginx/sites-available/default
+            sudo nginx -t
+            sudo systemctl reload nginx
+          EOF
 
+          # Verify the new deployment
+          echo "Verifying deployment in $NEW_ENV environment"
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
             sudo apt install -y net-tools || true
             sudo netstat -tuln | grep :$SERVICE_PORT
@@ -40,5 +57,4 @@ jobs:
           EOF
 
           echo "Service is running on port $SERVICE_PORT, running curl command"
-
           curl -f http://$SSH_HOST:$SERVICE_PORT/sayHello || exit 1
