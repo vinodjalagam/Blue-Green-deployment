@@ -43,7 +43,7 @@ jobs:
           chmod 600 private_key.pem
 
           DEPLOY_DIR="/home/$SSH_USERNAME/backend-blue"
-          SERVICE_PORT=80
+          SERVICE_PORT=8085
 
           echo "Deploying to $DEPLOY_DIR"
           ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST "sudo mkdir -p $DEPLOY_DIR && sudo chown -R $SSH_USERNAME:$SSH_USERNAME $DEPLOY_DIR && sudo chmod -R 755 $DEPLOY_DIR"
