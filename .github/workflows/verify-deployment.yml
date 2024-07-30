@@ -1,0 +1,49 @@
+name: Verify Active Deployment
+
+on:
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Add SSH host key
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan ${{ secrets.HOST }} >> ~/.ssh/known_hosts
+
+      - name: Verify Active Deployment
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          SSH_HOST: ${{ secrets.HOST }}
+          SSH_USERNAME: ${{ secrets.USERNAME }}
+        run: |
+          echo "$SSH_PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+
+          echo "Checking active deployment"
+          ssh -i private_key.pem $SSH_USERNAME@$SSH_HOST << EOF
+            ACTIVE_ENV=\$(sudo grep -oP 'proxy_pass http://\K[^;]+' /etc/nginx/sites-available/default)
+            if [ "\$ACTIVE_ENV" == "blue" ]; then
+              echo "Blue environment is active"
+              DEPLOY_DIR="/home/$SSH_USERNAME/backend-blue"
+              SERVICE_PORT=8085
+            elif [ "\$ACTIVE_ENV" == "green" ]; then
+              echo "Green environment is active"
+              DEPLOY_DIR="/home/$SSH_USERNAME/backend-green"
+              SERVICE_PORT=8086
+            else
+              echo "No active environment found"
+              exit 1
+            fi
+
+            echo "Verifying deployment in \$DEPLOY_DIR"
+            cd \$DEPLOY_DIR
+            echo "Contents of \$DEPLOY_DIR"
+            ls -al 
+            curl -f http://localhost:\$SERVICE_PORT || exit 1
+          EOF
