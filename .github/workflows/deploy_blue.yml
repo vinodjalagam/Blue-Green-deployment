@@ -70,7 +70,6 @@ jobs:
               exit 1
             fi
             
-
           EOF
 
       - name: Configure Nginx for Blue
